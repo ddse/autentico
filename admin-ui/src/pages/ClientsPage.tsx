@@ -8,15 +8,18 @@ import {
   Space,
   Alert,
   Input,
+  Popconfirm,
+  App,
 } from "antd";
 import {
   PlusOutlined,
   EditOutlined,
   EyeOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import type { FilterValue, SorterResult } from "antd/es/table/interface";
-import { useClients } from "../hooks/useClients";
+import { useClients, useDeleteClient } from "../hooks/useClients";
 import type { ClientInfoResponse } from "../types/client";
 import type { ListParams } from "../api/users";
 import ClientCreateForm from "../components/clients/ClientCreateForm";
@@ -27,8 +30,8 @@ import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from "../constants/table";
 import GrantChips from "../components/GrantChips";
 import CopyText from "../components/CopyText";
 
-
 export default function ClientsPage() {
+  const { message } = App.useApp();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const scrollY = useTableScrollY(tableContainerRef);
 
@@ -41,6 +44,7 @@ export default function ClientsPage() {
   const [searchValue, setSearchValue] = useState("");
 
   const { data, isLoading, error } = useClients(listParams);
+  const deleteClient = useDeleteClient();
   const location = useLocation();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -51,9 +55,19 @@ export default function ClientsPage() {
       window.history.replaceState({}, "");
     }
   }, [location.state]);
+
   const [editClient, setEditClient] = useState<ClientInfoResponse | null>(null);
   const [detailClient, setDetailClient] =
     useState<ClientInfoResponse | null>(null);
+
+  const handleDelete = async (clientId: string) => {
+    try {
+      await deleteClient.mutateAsync(clientId);
+      message.success("Client deleted");
+    } catch {
+      message.error("Failed to delete client");
+    }
+  };
 
   const handleTableChange = useCallback(
     (
@@ -110,9 +124,7 @@ export default function ClientsPage() {
             : "ascend"
           : undefined,
       ellipsis: true,
-      render: (name: string) => (
-        <CopyText text={name} />
-      ),
+      render: (name: string) => <CopyText text={name} />,
     },
     {
       title: "Client ID",
@@ -126,9 +138,7 @@ export default function ClientsPage() {
             : "ascend"
           : undefined,
       ellipsis: true,
-      render: (id: string) => (
-        <CopyText text={id} />
-      ),
+      render: (id: string) => <CopyText text={id} />,
     },
     {
       title: "Type",
@@ -189,6 +199,22 @@ export default function ClientsPage() {
             icon={<EditOutlined />}
             onClick={() => setEditClient(record)}
           />
+          <Popconfirm
+            title="Delete this client?"
+            description="This action permanently deletes the client and cannot be undone."
+            onConfirm={() => handleDelete(record.client_id)}
+            okText="Delete"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true, loading: deleteClient.isPending }}
+          >
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              loading={deleteClient.isPending}
+            />
+          </Popconfirm>
         </Space>
       ),
     },
